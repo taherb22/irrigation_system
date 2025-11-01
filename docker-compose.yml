@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:6
+    container_name: agri-mongodb
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: agridb
+    networks:
+      - agri-network
+
+  # MQTT Broker (Mosquitto)
+  mqtt-broker:
+    image: eclipse-mosquitto:2
+    container_name: agri-mqtt
+    restart: unless-stopped
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    networks:
+      - agri-network
+
+  # Backend API Server
+  backend:
+    build: ./backend
+    container_name: agri-backend
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/agridb
+      - MQTT_BROKER=mqtt://mqtt-broker:1883
+      - PORT=3000
+    depends_on:
+      - mongodb
+      - mqtt-broker
+    networks:
+      - agri-network
+
+volumes:
+  mongo-data:
+
+networks:
+  agri-network:
+    driver: bridge
